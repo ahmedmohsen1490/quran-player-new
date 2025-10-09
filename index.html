@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>رونق</title>
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="/quran-player-new/assets/manifest-DhamWL-o.json" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -87,6 +87,8 @@
         scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-track-bg);
       }
     </style>
+
+<link rel="stylesheet" href="/index.css">
 <script type="importmap">
 {
   "imports": {
@@ -100,11 +102,10 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
+  <script type="module" crossorigin src="/quran-player-new/assets/index-C_WWWovm.js"></script>
 </head>
   <body class="bg-background text-text-primary">
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
