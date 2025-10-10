@@ -1,8 +1,9 @@
 const DB_NAME = 'ronaq-db';
-const DB_VERSION = 4; // Incremented version
+const DB_VERSION = 5; // Reverted version
 const AUDIO_STORE_NAME = 'ayahs';
 const TAFSIR_STORE_NAME = 'tafsir';
 const TEXT_STORE_NAME = 'quranText';
+const REFERENCE_STORE_NAME = 'quranReference';
 
 let db: IDBDatabase;
 
@@ -26,7 +27,6 @@ export const initDB = (): Promise<IDBDatabase> => {
     request.onupgradeneeded = (event) => {
       const dbInstance = (event.target as IDBOpenDBRequest).result;
       
-      // Migration from older versions: remove 'kidsAudio' store if it exists
       if (event.oldVersion < 4 && dbInstance.objectStoreNames.contains('kidsAudio')) {
           dbInstance.deleteObjectStore('kidsAudio');
       }
@@ -39,6 +39,9 @@ export const initDB = (): Promise<IDBDatabase> => {
       }
       if (!dbInstance.objectStoreNames.contains(TEXT_STORE_NAME)) {
         dbInstance.createObjectStore(TEXT_STORE_NAME, { keyPath: 'id' });
+      }
+      if (!dbInstance.objectStoreNames.contains(REFERENCE_STORE_NAME)) {
+        dbInstance.createObjectStore(REFERENCE_STORE_NAME, { keyPath: 'id' });
       }
     };
   });
@@ -111,6 +114,35 @@ export const getTafsir = async (surahId: number, ayahInSurah: number): Promise<s
             console.error('Failed to get tafsir:', (event.target as IDBRequest).error);
             reject('Failed to get tafsir: ' + (event.target as IDBRequest).error);
         };
+    });
+};
+
+export const addReferenceAyah = async (surahId: number, ayahInSurah: number, data: any): Promise<void> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([REFERENCE_STORE_NAME], 'readwrite');
+        const store = transaction.objectStore(REFERENCE_STORE_NAME);
+        const id = `${surahId}:${ayahInSurah}`;
+        const request = store.put({ id, ...data });
+
+        request.onsuccess = () => resolve();
+        request.onerror = (event) => reject('Failed to add reference ayah: ' + (event.target as IDBRequest).error);
+    });
+};
+
+export const getReferenceAyah = async (surahId: number, ayahInSurah: number): Promise<any | null> => {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction([REFERENCE_STORE_NAME], 'readonly');
+        const store = transaction.objectStore(REFERENCE_STORE_NAME);
+        const id = `${surahId}:${ayahInSurah}`;
+        const request = store.get(id);
+
+        request.onsuccess = (event) => {
+            const result = (event.target as IDBRequest).result;
+            resolve(result || null);
+        };
+        request.onerror = (event) => reject('Failed to get reference ayah: ' + (event.target as IDBRequest).error);
     });
 };
 

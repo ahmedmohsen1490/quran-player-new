@@ -1,4 +1,3 @@
-
 export interface Surah {
   id: number;
   name: string;
@@ -31,11 +30,29 @@ export interface Tafsir {
   text: string;
 }
 
+export interface Muazzin {
+  id: string;
+  name: string;
+  audioUrl: string;
+}
+
+export interface MuazzinSettings {
+  country: string;
+  city: string;
+  method: number;
+  school: 0 | 1; // 0 for Standard, 1 for Hanafi
+  muazzinId: string;
+  remindersEnabled: boolean;
+  tune: Record<string, number>;
+}
+
+// FIX: Add missing 'PrayerSettings' interface to resolve compilation errors.
 export interface PrayerSettings {
   country: string;
   region: string;
   method: number;
 }
+
 
 export interface PrayerTimes {
   Fajr: string;
@@ -55,6 +72,9 @@ export interface ThemeColors {
   border: string;
   backgroundStart: string;
   backgroundEnd: string;
+  mushafBackground: string;
+  mushafPage: string;
+  mushafBorder: string;
 }
 
 export interface Theme {
@@ -99,6 +119,7 @@ export interface FiqhTopic {
   id: string;
   title: string;
   color: 'blue' | 'green' | 'amber' | 'sky' | 'slate';
+  // FIX: Add missing 'icon' property to FiqhTopic interface
   icon: string;
   questions: QuizQuestion[];
 }
@@ -134,7 +155,10 @@ export interface KidProfile {
   id: number;
   name: string;
   age: number;
+  gender: 'male' | 'female';
 }
+
+export type AgeGroup = '3-5' | '6-8' | '9-12' | '13-15';
 
 export interface KidsStory {
   id: number;
@@ -146,7 +170,7 @@ export interface KidsStory {
     options: string[];
     correctAnswer: string;
   };
-  ageGroup: '3-5' | '6-8' | '9-12';
+  ageGroup: AgeGroup;
   illustration: string; // Emoji for visual aid
 }
 
@@ -162,7 +186,7 @@ export interface KidsGame {
   type: 'quiz' | 'matching';
   questions?: KidsQuizQuestion[];
   matchingPairs?: KidsMatchingPair[];
-  ageGroup: '3-5' | '6-8' | '9-12';
+  ageGroup: AgeGroup;
 }
 
 export interface KidsQuizQuestion {
@@ -179,7 +203,7 @@ export interface KidsDhikr {
   dhikr: string;
   audio: string;
   benefit: string;
-  ageGroup: '3-5' | '6-8' | '9-12';
+  ageGroup: AgeGroup;
 }
 
 export interface Flashcard {
@@ -192,7 +216,7 @@ export interface FlashcardSet {
   id: string;
   title: string;
   cards: Flashcard[];
-  ageGroup: '3-5' | '6-8' | '9-12';
+  ageGroup: AgeGroup;
 }
 
 export interface KidsProgress {
@@ -225,4 +249,81 @@ export interface Battle {
   events: string;
   results: string;
   stories: string;
+}
+
+export interface DailyContent {
+  contentType: 'آية قرآنية' | 'حديث شريف';
+  text: string;
+  source: string;
+  takeaway: string;
+}
+
+// Quranic Reference Types for Non-AI Assistant
+export interface HadithReference {
+  text: string;
+  source: string;
+}
+
+export interface AyahReference {
+  ayahNumber: number;
+  text: string;
+  tafseer: {
+    text: string;
+    source: string;
+  };
+  tajweed: {
+    text: string;
+    source: string;
+  };
+  hadith: HadithReference[];
+}
+
+export interface SurahReference {
+  surahId: number;
+  surahName: string;
+  ayahs: AyahReference[];
+}
+
+export interface CounselorTopic {
+  id: string;
+  title: string;
+  icon: string;
+  content: {
+    introduction: string;
+    psychological: {
+      title: string;
+      text: string;
+      source: string;
+    };
+    spiritual: {
+      title: string;
+      text: string;
+      source: string;
+    };
+    practical: {
+      title: string;
+      text: string;
+      source: string;
+    };
+  };
+}
+
+// Types for Recitation Analysis
+export interface TajweedRule {
+  rule: string;
+  word: string;
+  explanation: string;
+}
+
+export interface TestPoints {
+  positive: string[];
+  negative: string[];
+}
+
+export interface RecitationAnalysis {
+  surahId: number;
+  ayahNumber: number;
+  text: string;
+  tajweedAnalysis: TajweedRule[];
+  testPoints: TestPoints;
 }

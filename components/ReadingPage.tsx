@@ -1,14 +1,12 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Surah } from '../types';
 import * as db from '../db';
 import { BackIcon } from './icons/BackIcon';
 import { SettingsIcon } from './icons/SettingsIcon';
-import { SURAH_PAGE_MAP } from '../constants';
 import { DownloadIcon } from './icons/DownloadIcon';
-import { CheckCircleIcon } from './icons/CheckCircleIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { CopyIcon } from './icons/CopyIcon';
+import { CheckCircleIcon } from './icons/CheckCircleIcon';
 
 const ZoomInIcon: React.FC<{ className?: string }> = ({ className }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -22,26 +20,18 @@ const ZoomOutIcon: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-const darkenColor = (hex: string, amount: number) => {
-    const num = parseInt(hex.replace("#", ""), 16);
-    const r = Math.max(0, (num >> 16) - amount);
-    const g = Math.max(0, ((num >> 8) & 0x00FF) - amount);
-    const b = Math.max(0, (num & 0x0000FF) - amount);
-    return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
-};
-
-
-// Define a local type for Ayahs from the page API to match its structure.
 interface PageAyah {
-    number: number;
+    id: number;
     text: string;
+    page_number: number;
+    juz_number: number;
     numberInSurah: number;
-    page: number;
-    surah: {
-        number: number;
-        name: string;
-    };
-    juz: number;
+}
+
+interface PaginatedSurah {
+    pageNumber: number;
+    juzNumber: number;
+    ayahs: PageAyah[];
 }
 
 interface ReadingStats {
@@ -53,13 +43,120 @@ interface ReadingStats {
     } | null;
 }
 
-const calmColors = { 
-    Beige: '#fdf9e8', 
-    Cream: '#F2EEC0', 
-    'Light Turquoise': '#E0F2F1', 
-    'Light Green': '#E8F5E9' 
+// Map of Surah IDs to a RegExp that matches their opening letters if they are a separate verse but merged by the API.
+// This list is enhanced to be more robust and cover all 29 Surahs with Huroof Muqatta'at.
+const surahLetterSplitMap: { [key: number]: RegExp } = {
+  2: /^(الٓمٓ\s*)/,        // Al-Baqarah
+  3: /^(الٓمٓ\s*)/,        // Aal-E-Imran
+  7: /^(الٓمٓصٓ\s*)/,      // Al-A'raf
+  10: /^(الٓرۚ?\s*)/,     // Yunus
+  11: /^(الٓرۚ?\s*)/,     // Hud
+  12: /^(الٓرۚ?\s*)/,     // Yusuf
+  13: /^(الٓمٓرۚ?\s*)/,   // Ar-Ra'd
+  14: /^(الٓرۚ?\s*)/,     // Ibrahim
+  15: /^(الٓرۚ?\s*)/,     // Al-Hijr
+  19: /^(كهيعٓصٓ\s*)/,    // Maryam
+  20: /^(طه\s*)/,        // Ta-Ha
+  26: /^(طسٓمٓ\s*)/,      // Ash-Shu'ara
+  27: /^(طسٓۚ?\s*)/,      // An-Naml
+  28: /^(طسٓمٓ\s*)/,      // Al-Qasas
+  29: /^(الٓمٓ\s*)/,        // Al-Ankabut
+  30: /^(الٓمٓ\s*)/,        // Ar-Rum
+  31: /^(الٓمٓ\s*)/,        // Luqman
+  32: /^(الٓمٓ\s*)/,        // As-Sajdah
+  36: /^(يسٓ\s*)/,        // Ya-Sin
+  38: /^(صٓۚ?\s*)/,      // Sad
+  40: /^(حمٓ\s*)/,        // Ghafir
+  41: /^(حمٓ\s*)/,        // Fussilat
+  // Ash-Shura (42) has special handling in the function below for the "حم عسق" case.
+  // This entry handles the case where only "حم" might be merged with the subsequent verse.
+  42: /^(حمٓ\s*)/,
+  43: /^(حمٓ\s*)/,        // Az-Zukhruf
+  44: /^(حمٓ\s*)/,        // Ad-Dukhan
+  45: /^(حمٓ\s*)/,        // Al-Jathiyah
+  46: /^(حمٓ\s*)/,        // Al-Ahqaf
+  50: /^(قٓۚ?\s*)/,       // Qaf
+  68: /^(نٓۚ?\s*)/,       // Al-Qalam
 };
-type CalmColorName = keyof typeof calmColors;
+
+// This function processes verses for special Surahs where the API merges the opening letters with the first full verse.
+// It is enhanced to handle all cases of Huroof Muqatta'at, including the unique structure of Surah Ash-Shura.
+const processSpecialVerses = (verses: any[], surahId: number): any[] => {
+    // Return early if there's nothing to process or if the first verse is not verse #1
+    if (!verses || verses.length === 0 || parseInt(String(verses[0].numberInSurah), 10) !== 1) {
+        return verses;
+    }
+
+    const firstVerse = verses[0];
+    
+    // Special handling for Ash-Shura (42), which has two verses of disjointed letters (حم and عسق).
+    // This handles the case where an API might merge both (or all three) verses.
+    if (surahId === 42) {
+        // This regex looks for "حم" followed by "عسق" and captures them and the rest of the text.
+        const shuraRegex = /^(حمٓ)\s*(عٓسٓقٓ)\s*(.*)$/s;
+        const match = firstVerse.text.match(shuraRegex);
+
+        if (match) {
+            const [, haMeem, ainSeenQaf, rest] = match;
+            const remainingText = rest.trim();
+            const newVerses = [];
+
+            // Verse 1: حم
+            newVerses.push({ ...firstVerse, text: haMeem, numberInSurah: 1 });
+            // Verse 2: عسق
+            newVerses.push({ ...firstVerse, number: parseFloat(String(firstVerse.number)) + 0.5, text: ainSeenQaf, numberInSurah: 2 });
+            
+            let verseOffset = 1; // We added one verse (عسق)
+
+            if (remainingText) {
+                // If there's text after عسق, it's the start of verse 3
+                newVerses.push({ ...firstVerse, number: parseFloat(String(firstVerse.number)) + 0.6, text: remainingText, numberInSurah: 3 });
+                verseOffset = 2; // We created a new verse 3 from the split
+            }
+
+            // Renumber all subsequent verses based on how many new verses we created
+            const subsequentVerses = verses.slice(1).map(v => ({
+                ...v,
+                numberInSurah: parseInt(String(v.numberInSurah), 10) + verseOffset
+            }));
+            
+            return [...newVerses, ...subsequentVerses];
+        }
+    }
+    
+    // Generic handling for all other Surahs
+    const splitter = surahLetterSplitMap[surahId];
+    if (!splitter) {
+        return verses;
+    }
+
+    const match = firstVerse.text.match(splitter);
+    if (match) {
+        const lettersText = match[1].trim();
+        const remainingText = firstVerse.text.substring(match[0].length).trim();
+
+        if (!remainingText) {
+            return verses; // Verse is already correct, nothing to split.
+        }
+
+        const lettersVerse = { ...firstVerse, text: lettersText, numberInSurah: 1 };
+        const secondVerse = { ...firstVerse, text: remainingText, numberInSurah: 2, number: parseFloat(String(firstVerse.number)) + 0.5 };
+        
+        const updatedFollowingVerses = verses.slice(1).map(v => ({
+            ...v,
+            numberInSurah: parseInt(String(v.numberInSurah), 10) + 1,
+        }));
+
+        return [lettersVerse, secondVerse, ...updatedFollowingVerses];
+    }
+
+    return verses;
+};
+
+
+// Helper to remove Basmalah from any Ayah text to prevent duplication
+const getCleanAyahText = (text: string) => text.replace(/^بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ\s*/, '');
+
 
 const AyahEndIcon: React.FC<{ number: number | string, className?: string }> = ({ number, className }) => (
     <svg viewBox="0 0 40 40" className={`inline-block w-[1.5em] h-[1.5em] text-primary dark:text-primary/80 ${className}`}>
@@ -72,31 +169,21 @@ const AyahEndIcon: React.FC<{ number: number | string, className?: string }> = (
 
 const MushafViewer: React.FC<{
     surah: Surah;
-    surahs: Surah[];
     onBack: () => void;
-}> = ({ surah, surahs, onBack }) => {
-    const [currentPage, setCurrentPage] = useState(() => {
-        const lastPages = JSON.parse(localStorage.getItem('lastReadPagePerSurah') || '{}');
-        return lastPages[surah.id] || SURAH_PAGE_MAP[surah.id] || 1;
-    });
-    const [pageData, setPageData] = useState<PageAyah[] | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+}> = ({ surah, onBack }) => {
+    const [paginatedSurah, setPaginatedSurah] = useState<PaginatedSurah[] | null>(null);
+    const [currentPageIndex, setCurrentPageIndex] = useState(0);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [fontSize, setFontSize] = useState(() => Number(localStorage.getItem('mushafFontSize') || 28));
-    const [bgColor, setBgColor] = useState<CalmColorName>(() => (localStorage.getItem('mushafBgColorName') as CalmColorName) || 'Beige');
     const [copyTooltip, setCopyTooltip] = useState<{ ayah: PageAyah; top: number; left: number } | null>(null);
     const [copied, setCopied] = useState(false);
 
     const contentRef = useRef<HTMLDivElement>(null);
-    const settingsRef = useRef<HTMLDivElement>(null);
     const copyTooltipRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
+     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-                setIsSettingsOpen(false);
-            }
             if (copyTooltipRef.current && !copyTooltipRef.current.contains(event.target as Node)) {
                 setCopyTooltip(null);
             }
@@ -109,98 +196,101 @@ const MushafViewer: React.FC<{
         localStorage.setItem('mushafFontSize', String(fontSize));
     }, [fontSize]);
 
-    useEffect(() => {
-        localStorage.setItem('mushafBgColorName', bgColor);
-    }, [bgColor]);
-    
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            const readPagesSet = new Set(JSON.parse(localStorage.getItem('readPagesSet') || '[]'));
-            if (!readPagesSet.has(currentPage)) {
-                readPagesSet.add(currentPage);
-                localStorage.setItem('readPagesSet', JSON.stringify(Array.from(readPagesSet)));
-            }
-        }, 15000);
-
-        return () => clearTimeout(timer);
-    }, [currentPage]);
-
-    useEffect(() => {
-        const allLastPages = JSON.parse(localStorage.getItem('lastReadPagePerSurah') || '{}');
-        allLastPages[surah.id] = currentPage;
-        localStorage.setItem('lastReadPagePerSurah', JSON.stringify(allLastPages));
-
-        const lastLocation = { surahId: surah.id, surahName: surah.name, page: currentPage };
-        localStorage.setItem('lastReadLocation', JSON.stringify(lastLocation));
-    }, [currentPage, surah]);
-    
-    const fetchPageData = useCallback(async () => {
+    const fetchAndPaginateSurah = useCallback(async () => {
         setIsLoading(true);
         setError(null);
-        setPageData(null);
+        setPaginatedSurah(null);
 
         try {
-            // First, try to get data from IndexedDB
+            let versesData: any[] = [];
             const offlineSurahData = await db.getSurahText(surah.id);
-            if (offlineSurahData) {
-                const pageAyahs = offlineSurahData.filter(ayah => ayah.page === currentPage);
-                if (pageAyahs.length > 0) {
-                    setPageData(pageAyahs);
-                    setIsLoading(false);
-                    if (contentRef.current) contentRef.current.scrollTop = 0;
-                    return; // Data found offline, no need to fetch from network
-                }
+
+            if (offlineSurahData && offlineSurahData.length > 0) {
+                versesData = offlineSurahData;
+            } else {
+                const response = await fetch(`https://api.alquran.cloud/v1/surah/${surah.id}/editions/quran-uthmani`);
+                if (!response.ok) throw new Error('فشل في جلب بيانات السورة من الإنترنت.');
+                const data = await response.json();
+                if (data.code !== 200 || !data.data[0].ayahs) throw new Error('مصدر البيانات غير صالح.');
+                versesData = data.data[0].ayahs;
+            }
+
+            if (!versesData || versesData.length === 0) {
+                throw new Error('لا توجد بيانات لهذه السورة.');
             }
             
-            // If not found offline, fetch from network using the corrected API
-            const response = await fetch(`https://api.quran.com/api/v4/verses/by_page/${currentPage}?language=ar&fields=text_uthmani,juz_number`);
-            if (!response.ok) throw new Error('Failed to fetch page data from network.');
-            
-            const data = await response.json();
+            const processedVersesData = processSpecialVerses(versesData, surah.id);
 
-            if (!data.verses) throw new Error('Invalid API response structure from quran.com.');
+            const verses: PageAyah[] = processedVersesData.map((verse: any) => ({
+                id: verse.number,
+                text: verse.text,
+                page_number: verse.page,
+                juz_number: verse.juz,
+                numberInSurah: verse.numberInSurah,
+            }));
+
+            const pagesMap = new Map<number, PaginatedSurah>();
+            for (const verse of verses) {
+                if (!verse.page_number) continue;
+                if (!pagesMap.has(verse.page_number)) {
+                    pagesMap.set(verse.page_number, {
+                        pageNumber: verse.page_number,
+                        juzNumber: verse.juz_number,
+                        ayahs: [],
+                    });
+                }
+                pagesMap.get(verse.page_number)!.ayahs.push(verse);
+            }
+            const pagesArray = Array.from(pagesMap.values()).sort((a, b) => a.pageNumber - b.pageNumber);
+            setPaginatedSurah(pagesArray);
+
+            const lastPages = JSON.parse(localStorage.getItem('lastReadPagePerSurah') || '{}');
+            const lastReadPageNumber = lastPages[surah.id];
             
-            const mappedAyahs: PageAyah[] = data.verses.map((verse: any) => {
-                const [surahIdStr, ayahInSurahStr] = verse.verse_key.split(':');
-                const surahId = parseInt(surahIdStr, 10);
-                const surahInfo = surahs.find(s => s.id === surahId);
-                
-                return {
-                    number: verse.id, // global verse number
-                    text: verse.text_uthmani,
-                    numberInSurah: parseInt(ayahInSurahStr, 10),
-                    page: currentPage,
-                    surah: {
-                        number: surahId,
-                        name: surahInfo ? surahInfo.name : '',
-                    },
-                    juz: verse.juz_number,
-                };
-            });
-            
-            setPageData(mappedAyahs);
+            const startingPageIndex = lastReadPageNumber ? pagesArray.findIndex(p => p.pageNumber === lastReadPageNumber) : 0;
+            setCurrentPageIndex(startingPageIndex > -1 ? startingPageIndex : 0);
 
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unknown error occurred.');
+            setError(err instanceof Error ? err.message : 'حدث خطأ غير معروف.');
         } finally {
             setIsLoading(false);
-            if (contentRef.current) contentRef.current.scrollTop = 0;
         }
-    }, [currentPage, surah.id, surahs]);
-
+    }, [surah.id]);
 
     useEffect(() => {
-        fetchPageData();
-    }, [fetchPageData]);
+        fetchAndPaginateSurah();
+    }, [fetchAndPaginateSurah]);
+    
+    useEffect(() => {
+        if (paginatedSurah && paginatedSurah[currentPageIndex]) {
+            const currentPageNumber = paginatedSurah[currentPageIndex].pageNumber;
+            const allLastPages = JSON.parse(localStorage.getItem('lastReadPagePerSurah') || '{}');
+            allLastPages[surah.id] = currentPageNumber;
+            localStorage.setItem('lastReadPagePerSurah', JSON.stringify(allLastPages));
+
+            const lastLocation = { surahId: surah.id, surahName: surah.name, page: currentPageNumber };
+            localStorage.setItem('lastReadLocation', JSON.stringify(lastLocation));
+
+            const readPagesSet = new Set(JSON.parse(localStorage.getItem('readPagesSet') || '[]'));
+            if (!readPagesSet.has(currentPageNumber)) {
+                readPagesSet.add(currentPageNumber);
+                localStorage.setItem('readPagesSet', JSON.stringify(Array.from(readPagesSet)));
+            }
+        }
+        if (contentRef.current) {
+            contentRef.current.scrollTop = 0;
+        }
+    }, [currentPageIndex, paginatedSurah, surah.id, surah.name]);
+
 
     const changePage = (offset: number) => {
-        const newPage = currentPage + offset;
-        if (newPage >= 1 && newPage <= 604) {
-            setCurrentPage(newPage);
+        const newIndex = currentPageIndex + offset;
+        if (paginatedSurah && newIndex >= 0 && newIndex < paginatedSurah.length) {
+            setCurrentPageIndex(newIndex);
             setCopyTooltip(null);
         }
     };
-
+    
     const handleAyahClick = (e: React.MouseEvent<HTMLSpanElement>, ayah: PageAyah) => {
         const rect = e.currentTarget.getBoundingClientRect();
         setCopyTooltip({ ayah, top: rect.top + window.scrollY, left: rect.left + window.scrollX });
@@ -209,7 +299,7 @@ const MushafViewer: React.FC<{
 
     const handleCopy = () => {
         if (!copyTooltip) return;
-        const textToCopy = `"${copyTooltip.ayah.text}" (سورة ${copyTooltip.ayah.surah.name}, الآية ${copyTooltip.ayah.numberInSurah})`;
+        const textToCopy = `"${copyTooltip.ayah.text}" (سورة ${surah.name}, الآية ${copyTooltip.ayah.numberInSurah})`;
         navigator.clipboard.writeText(textToCopy).then(() => {
             setCopied(true);
             setTimeout(() => {
@@ -217,7 +307,7 @@ const MushafViewer: React.FC<{
             }, 1200);
         });
     };
-    
+
     const FONT_STEP = 2;
     const MIN_FONT_SIZE = 20;
     const MAX_FONT_SIZE = 48;
@@ -225,113 +315,88 @@ const MushafViewer: React.FC<{
     const handleZoom = (direction: 'in' | 'out') => {
         setFontSize(prevSize => {
             let newSize = prevSize + (direction === 'in' ? FONT_STEP : -FONT_STEP);
-            if (newSize < MIN_FONT_SIZE) newSize = MIN_FONT_SIZE;
-            if (newSize > MAX_FONT_SIZE) newSize = MAX_FONT_SIZE;
-            return newSize;
+            return Math.max(MIN_FONT_SIZE, Math.min(newSize, MAX_FONT_SIZE));
         });
     };
 
-    const scrollbarStyle = {
-        '--scrollbar-track-bg': calmColors[bgColor],
-        '--scrollbar-thumb-bg': darkenColor(calmColors[bgColor], 40)
-    };
-    
     const renderPageContent = () => {
-        if (!pageData) return null;
-        const renderedSurahHeaders = new Set<number>();
-        return pageData.map((ayah, index) => {
-            const textToDisplay = ayah.text.replace(/^[بسم الله الرحمن الرحيم\s]*/, '');
-            const showBasmala = ayah.numberInSurah === 1 && ayah.surah.number !== 1 && ayah.surah.number !== 9 && !pageData.some(a => a.numberInSurah === 0 && a.surah.number === ayah.surah.number);
+        if (!paginatedSurah) return null;
+        const currentPageData = paginatedSurah[currentPageIndex];
+        if (!currentPageData || !currentPageData.ayahs) return null;
+        
+        const isFirstPageOfSurah = currentPageData.ayahs.some(a => a.numberInSurah === 1) && currentPageIndex === 0;
 
-            // Special handling for Muqatta'at which are the first verse.
-            // Some APIs merge Basmala with the first verse. `text_uthmani` is usually clean.
-            const isFirstAyahOnPage = index === 0;
-            const isSurahStartOnThisPage = pageData.some(a => a.numberInSurah === 1);
-            
-            const showSurahHeader = (isFirstAyahOnPage && isSurahStartOnThisPage) || (ayah.numberInSurah === 1);
+        const showBasmalah = isFirstPageOfSurah && surah.id !== 1 && surah.id !== 9;
 
-            let surahForHeader: Surah | undefined;
-            if (showSurahHeader && !renderedSurahHeaders.has(ayah.surah.number)) {
-                 surahForHeader = surahs.find(s => s.id === ayah.surah.number);
-                 if(surahForHeader) renderedSurahHeaders.add(ayah.surah.number);
-            }
-          
-            return (
-                <React.Fragment key={ayah.number}>
-                    {surahForHeader && (
-                        <div className="my-4 p-2 border-y-4 border-double border-[#b4a485] bg-[#f3efe4] text-center">
-                            <h3 className="text-2xl font-bold font-amiri-quran text-black">{surahForHeader.name}</h3>
-                            <p className="text-sm text-gray-700 font-sans">
-                                {surahForHeader.revelationType === 'Meccan' ? 'مكية' : 'مدنية'} • {surahForHeader.numberOfAyahs} آيات
-                            </p>
-                        </div>
-                    )}
-                    {showBasmala && (
-                        <p className="text-center font-amiri-quran tracking-wider my-4" style={{ fontSize: `${fontSize * 1.1}px` }}>
-                            بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
-                        </p>
-                    )}
-                    <span onClick={(e) => handleAyahClick(e, ayah)} className="cursor-pointer hover:bg-primary/10 rounded-md">
-                        <span className="ayah-text" data-ayah-ref={`${ayah.surah.number}:${ayah.numberInSurah}`}>
-                            {ayah.text}
+        const surahHeader = (
+            <div className="text-center mb-4">
+                <div className="p-2 border-y-4 border-double border-mushaf-border">
+                    <h3 className="text-2xl font-bold font-amiri-quran text-text-primary">{surah.name}</h3>
+                </div>
+            </div>
+        );
+
+        return (
+            <>
+                {isFirstPageOfSurah && surah.id !== 1 && surahHeader}
+                {showBasmalah && (
+                     <p className="font-amiri-quran tracking-wider my-4 text-center" style={{ fontSize: `${fontSize * 1.1}px` }}>
+                        بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
+                    </p>
+                )}
+                
+                {currentPageData.ayahs.map((ayah) => {
+                    // For ayahs that were split, don't clean the basmalah as it's not present.
+                    // Only clean for actual first ayahs of surahs that contain it.
+                    const text = (surah.id !== 1 && surah.id !== 9 && ayah.numberInSurah === 1) ? getCleanAyahText(ayah.text) : ayah.text;
+                    return (
+                        <span key={ayah.id} onClick={(e) => handleAyahClick(e, ayah)} className="cursor-pointer hover:bg-primary/10 rounded-md">
+                            {text}
+                            <AyahEndIcon number={ayah.numberInSurah} />
                         </span>
-                        <AyahEndIcon number={ayah.numberInSurah} />
-                    </span>
-                </React.Fragment>
-            );
-       });
+                    );
+                })}
+            </>
+        );
     };
     
-    const juzNumber = pageData && pageData.length > 0 ? pageData[0].juz : null;
+    const currentPageData = paginatedSurah?.[currentPageIndex];
 
     return (
-        <div className="fixed inset-0 z-30 flex flex-col animate-fade-in" style={{ backgroundColor: calmColors[bgColor] }}>
-            <header className="flex-shrink-0 bg-[#3D3522] text-white shadow-lg p-3 flex items-center justify-between">
-                <button onClick={onBack} className="p-2 rounded-full text-white/90 hover:bg-white/10 w-10 h-10 flex items-center justify-center" aria-label="العودة إلى قائمة السور"><BackIcon className="w-6 h-6 transform scale-x-[-1]" /></button>
+        <div className="fixed inset-0 z-30 flex flex-col animate-fade-in bg-mushaf-background">
+            <header className="flex-shrink-0 bg-background text-text-primary shadow-lg p-3 flex items-center justify-between border-b border-border-color">
+                <button onClick={onBack} className="p-2 rounded-full text-text-secondary hover:bg-border-color w-10 h-10 flex items-center justify-center" aria-label="العودة إلى قائمة السور"><BackIcon className="w-6 h-6 transform scale-x-[-1]" /></button>
                 
                 <div className="flex items-center gap-2">
-                    <button onClick={() => changePage(1)} disabled={currentPage >= 604} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-40" aria-label="الصفحة التالية"><BackIcon className="w-6 h-6 transform scale-x-[-1]" /></button>
-                    <span className="text-sm font-mono w-16 text-center text-white" aria-live="polite">
-                        {currentPage} / 604
+                    <button onClick={() => changePage(1)} disabled={!paginatedSurah || currentPageIndex >= paginatedSurah.length - 1} className="p-2 rounded-full text-text-secondary hover:bg-border-color disabled:opacity-40" aria-label="الصفحة التالية"><BackIcon className="w-6 h-6 transform scale-x-[-1]" /></button>
+                    <span className="text-sm font-mono w-24 text-center text-text-primary" aria-live="polite">
+                        {currentPageData?.pageNumber || '...'}
                     </span>
-                    <button onClick={() => changePage(-1)} disabled={currentPage <= 1} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-40" aria-label="الصفحة السابقة"><BackIcon className="w-6 h-6" /></button>
+                    <button onClick={() => changePage(-1)} disabled={currentPageIndex <= 0} className="p-2 rounded-full text-text-secondary hover:bg-border-color disabled:opacity-40" aria-label="الصفحة السابقة"><BackIcon className="w-6 h-6" /></button>
                 </div>
 
                 <div className="flex items-center gap-1">
-                    <button onClick={() => handleZoom('out')} disabled={fontSize <= MIN_FONT_SIZE} className="p-2 rounded-full text-white/90 hover:bg-white/10 disabled:opacity-40" aria-label="تصغير الخط"><ZoomOutIcon className="w-6 h-6"/></button>
-                    <button onClick={() => handleZoom('in')} disabled={fontSize >= MAX_FONT_SIZE} className="p-2 rounded-full text-white/90 hover:bg-white/10 disabled:opacity-40" aria-label="تكبير الخط"><ZoomInIcon className="w-6 h-6"/></button>
-                    <button onClick={() => { setIsSettingsOpen(o => !o); setCopyTooltip(null); }} className="p-2 rounded-full text-white/90 hover:bg-white/10" aria-label="إعدادات العرض"><SettingsIcon className="w-6 h-6"/></button>
+                    <button onClick={() => handleZoom('out')} disabled={fontSize <= MIN_FONT_SIZE} className="p-2 rounded-full text-text-secondary hover:bg-border-color disabled:opacity-40" aria-label="تصغير الخط"><ZoomOutIcon className="w-6 h-6"/></button>
+                    <button onClick={() => handleZoom('in')} disabled={fontSize >= MAX_FONT_SIZE} className="p-2 rounded-full text-text-secondary hover:bg-border-color disabled:opacity-40" aria-label="تكبير الخط"><ZoomInIcon className="w-6 h-6"/></button>
                 </div>
             </header>
             
-            <main ref={contentRef} className="flex-grow overflow-y-auto p-4 custom-scrollbar" style={scrollbarStyle as React.CSSProperties}>
+            <main ref={contentRef} className="flex-grow overflow-y-auto p-4 custom-scrollbar">
                  {isLoading && <div className="flex justify-center items-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-primary" role="status"><span className="sr-only">Loading...</span></div></div>}
                  {error && <div className="text-center text-red-500 p-8">{error}</div>}
-                 {pageData && (
-                     <div className="max-w-3xl mx-auto bg-[#fdfaf0] p-4 sm:p-6 rounded-lg shadow-xl border border-[#dcd6c0]">
-                        <div className="font-amiri-quran text-right text-black" style={{ fontSize: `${fontSize}px`, lineHeight: 2.0, textAlign: 'justify' }} dir="rtl">
+                 {currentPageData && (
+                     <div className="max-w-3xl mx-auto bg-mushaf-page p-4 sm:p-6 rounded-lg shadow-xl border border-mushaf-border">
+                        <div className="font-amiri-quran text-right text-text-primary" style={{ fontSize: `${fontSize}px`, lineHeight: 2.5, textAlign: 'justify' }} dir="rtl">
                            {renderPageContent()}
                         </div>
-                        <div className="mt-4 pt-2 border-t-2 border-dashed border-[#d3c9a4] flex justify-between items-center text-sm font-sans text-gray-600">
-                           {juzNumber && <span>الجزء {juzNumber}</span>}
-                           <span>{currentPage}</span>
+                        <div className="mt-4 pt-2 border-t-2 border-dashed border-mushaf-border/70 flex justify-between items-center text-sm font-sans text-text-secondary/90">
+                           {currentPageData.juzNumber && <span>الجزء {currentPageData.juzNumber}</span>}
+                           <span>{currentPageData.pageNumber}</span>
                         </div>
                     </div>
                  )}
             </main>
-
-            {isSettingsOpen && (
-                 <div ref={settingsRef} className="absolute top-16 right-3 w-72 bg-card p-4 rounded-lg shadow-xl border border-border-color z-40 animate-fade-in space-y-4">
-                    <div>
-                        <label className="text-sm text-text-secondary">لون الخلفية</label>
-                        <div className="flex justify-between items-center mt-2">
-                            {Object.entries(calmColors).map(([name, color]) => (
-                                <button key={name} onClick={() => setBgColor(name as CalmColorName)} className={`w-10 h-10 rounded-full border-2 ${bgColor === name ? 'ring-2 ring-primary ring-offset-2 dark:ring-offset-card' : 'border-border-color'}`} style={{backgroundColor: color}} aria-label={`Select ${name} color`}></button>
-                            ))}
-                        </div>
-                    </div>
-                 </div>
-            )}
+            
             {copyTooltip && (
                 <div ref={copyTooltipRef} style={{ top: copyTooltip.top - 70, left: '50%', transform: 'translateX(-50%)' }} className="fixed bg-card p-2 rounded-lg shadow-xl border border-border-color z-50 text-center animate-fade-in w-72">
                     <p className="text-xs text-text-secondary mb-2">نسخ الآية؟</p>
@@ -343,7 +408,6 @@ const MushafViewer: React.FC<{
         </div>
     );
 };
-
 
 const ReadingPage: React.FC<{ surahs: Surah[] }> = ({ surahs }) => {
     const [selectedSurah, setSelectedSurah] = useState<Surah | null>(null);
@@ -362,6 +426,7 @@ const ReadingPage: React.FC<{ surahs: Surah[] }> = ({ surahs }) => {
             setReadingStats({ pagesRead: readPages.length, lastLocation });
 
             const checkDownloads = async () => {
+                await db.initDB();
                 const keys = await db.getAllDownloadedKeys('quranText');
                 setDownloadedSurahs(new Set(keys.map(k => Number(k))));
             };
@@ -373,28 +438,13 @@ const ReadingPage: React.FC<{ surahs: Surah[] }> = ({ surahs }) => {
         if (downloadedSurahs.has(surah.id) || surahBeingDownloaded === surah.id) return;
         setSurahBeingDownloaded(surah.id);
         try {
-            const response = await fetch(`https://api.quran.com/api/v4/verses/by_chapter/${surah.id}?language=ar&fields=text_uthmani,page_number,juz_number`);
-            if (!response.ok) throw new Error('Failed to fetch Surah text from quran.com.');
+            const response = await fetch(`https://api.alquran.cloud/v1/surah/${surah.id}/editions/quran-uthmani`);
+            if (!response.ok) throw new Error('Failed to fetch Surah text from API.');
             const data = await response.json();
+            if (data.code !== 200 || !data.data[0].ayahs) throw new Error('Invalid API response structure.');
 
-            if (!data.verses) throw new Error('Invalid API response structure from quran.com.');
-
-            const ayahsForDb = data.verses.map((verse: any) => {
-                const [surahIdStr, ayahInSurahStr] = verse.verse_key.split(':');
-                return {
-                    number: verse.id,
-                    text: verse.text_uthmani,
-                    numberInSurah: parseInt(ayahInSurahStr, 10),
-                    page: verse.page_number,
-                    surah: {
-                        number: surah.id,
-                        name: surah.name,
-                    },
-                    juz: verse.juz_number,
-                };
-            });
-
-            await db.addSurahText(surah.id, ayahsForDb);
+            const versesToStore = data.data[0].ayahs;
+            await db.addSurahText(surah.id, versesToStore);
             setDownloadedSurahs(prev => new Set(prev).add(surah.id));
         } catch (error) {
             console.error(`Failed to download Surah ${surah.id}`, error);
@@ -420,7 +470,7 @@ const ReadingPage: React.FC<{ surahs: Surah[] }> = ({ surahs }) => {
     };
 
     if (selectedSurah) {
-        return <MushafViewer surah={selectedSurah} surahs={surahs} onBack={() => setSelectedSurah(null)} />;
+        return <MushafViewer surah={selectedSurah} onBack={() => setSelectedSurah(null)} />;
     }
 
     return (
@@ -433,17 +483,17 @@ const ReadingPage: React.FC<{ surahs: Surah[] }> = ({ surahs }) => {
                         <p className="text-sm text-text-secondary">صفحة مقروءة</p>
                     </div>
                     {readingStats.lastLocation ? (
-                        <div onClick={() => {
+                        <button onClick={() => {
                             const surahToOpen = surahs.find(s => s.id === readingStats.lastLocation?.surahId);
                             if (surahToOpen) setSelectedSurah(surahToOpen);
-                        }} className="cursor-pointer p-2 rounded-md hover:bg-border-color">
-                            <p className="font-semibold text-text-primary truncate">{readingStats.lastLocation.surahName}</p>
-                            <p className="text-sm text-text-secondary">آخر صفحة: {readingStats.lastLocation.page}</p>
-                        </div>
+                        }} className="p-2 rounded-md hover:bg-border-color">
+                            <p className="font-semibold text-text-primary truncate">متابعة: {readingStats.lastLocation.surahName}</p>
+                            <p className="text-sm text-text-secondary">صفحة {readingStats.lastLocation.page}</p>
+                        </button>
                     ) : (
                          <div>
                             <p className="font-semibold text-text-primary">-</p>
-                            <p className="text-sm text-text-secondary">آخر صفحة</p>
+                            <p className="text-sm text-text-secondary">آخر موضع قراءة</p>
                         </div>
                     )}
                 </div>
@@ -458,13 +508,15 @@ const ReadingPage: React.FC<{ surahs: Surah[] }> = ({ surahs }) => {
                         <div key={surah.id}
                             className="p-4 rounded-lg shadow-md bg-card hover:bg-border-color transition-all duration-200 flex items-center justify-between cursor-pointer"
                             onClick={() => setSelectedSurah(surah)}>
-                            <div className="flex items-center">
-                                <span className="w-10 h-10 flex items-center justify-center rounded-full text-sm font-medium ml-4 bg-background text-text-secondary">
+                            <div className="flex items-center min-w-0">
+                                <span className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full text-sm font-medium ml-4 bg-background text-text-secondary">
                                     {surah.id}
                                 </span>
-                                <p className="font-semibold font-amiri-quran text-xl text-text-primary">
-                                    {surah.name}
-                                </p>
+                                <div className="truncate">
+                                    <p className="font-semibold font-amiri-quran text-xl text-text-primary truncate">
+                                        {surah.name}
+                                    </p>
+                                </div>
                             </div>
                             <div className="flex-shrink-0">
                                 {isDownloading ? (

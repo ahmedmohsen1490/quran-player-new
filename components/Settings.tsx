@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { PrayerSettings, AzkarSettings, Surah } from '../types';
+import { MuazzinSettings, AzkarSettings, Surah } from '../types';
 import { InfoIcon } from './icons/InfoIcon';
 import { TrashIcon } from './icons/TrashIcon';
 import { locations } from '../data/locations';
@@ -8,10 +8,6 @@ import { CALCULATION_METHODS } from '../constants';
 interface SettingsProps {
     isOpen: boolean;
     onClose: () => void;
-    remindersEnabled: boolean;
-    onToggleReminders: () => void;
-    currentSettings: PrayerSettings | null;
-    onSaveSettings: (settings: PrayerSettings) => void;
     azkarSettings: AzkarSettings;
     onAzkarSettingsChange: (settings: AzkarSettings) => void;
     surahs: Surah[];
@@ -20,55 +16,22 @@ interface SettingsProps {
 }
 
 const Settings: React.FC<SettingsProps> = ({ 
-    isOpen, onClose, remindersEnabled, onToggleReminders, 
-    currentSettings, onSaveSettings,
+    isOpen, onClose,
     azkarSettings, onAzkarSettingsChange, surahs,
     downloadedTafsir, onDeleteTafsir
 }) => {
-    const [selectedCountry, setSelectedCountry] = useState(currentSettings?.country || '');
-    const [selectedRegion, setSelectedRegion] = useState(currentSettings?.region || '');
-    const [selectedMethod, setSelectedMethod] = useState(currentSettings?.method ?? 3);
-    const [error, setError] = useState('');
     const [showBatteryInfo, setShowBatteryInfo] = useState(false);
     const [showNotificationPrompt, setShowNotificationPrompt] = useState(false);
     
-    const countryNames = useMemo(() => Object.keys(locations).sort(), []);
-    const regionNames = useMemo(() => {
-        if (selectedCountry && locations[selectedCountry]) {
-            return locations[selectedCountry].sort();
-        }
-        return [];
-    }, [selectedCountry]);
-    
     useEffect(() => {
       if (isOpen) {
-        setSelectedCountry(currentSettings?.country || '');
-        setSelectedRegion(currentSettings?.region || '');
-        setSelectedMethod(currentSettings?.method ?? 3);
-        setError('');
-
         if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
             setShowNotificationPrompt(true);
         } else {
             setShowNotificationPrompt(false);
         }
       }
-    }, [isOpen, currentSettings]);
-
-    const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const newCountry = e.target.value;
-        setSelectedCountry(newCountry);
-        setSelectedRegion('');
-    };
-
-    const handleSave = () => {
-        if (!selectedCountry || !selectedRegion) {
-            setError('Please complete all location selections.');
-            return;
-        }
-        setError('');
-        onSaveSettings({ country: selectedCountry, region: selectedRegion, method: selectedMethod });
-    };
+    }, [isOpen]);
 
     const handleToggleAzkarReminders = () => {
         const newIsEnabled = !azkarSettings.isEnabled;
@@ -122,8 +85,6 @@ const Settings: React.FC<SettingsProps> = ({
                         <button onClick={onClose} className="text-text-secondary text-3xl leading-none hover:text-text-primary">&times;</button>
                     </div>
                     
-                    {error && <p className="text-red-500 text-center mb-4 text-sm">{error}</p>}
-
                     <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
 
                         {showNotificationPrompt && (
@@ -144,17 +105,6 @@ const Settings: React.FC<SettingsProps> = ({
 
                         <div className="p-3 bg-background rounded-lg space-y-3">
                             <h3 className="font-medium text-text-primary">إعدادات التنبيهات</h3>
-                            <div className="flex items-center justify-between">
-                                <label htmlFor="reminders-toggle" className="text-sm text-text-primary">تنبيهات الصلاة</label>
-                                <button
-                                    role="switch"
-                                    aria-checked={remindersEnabled}
-                                    onClick={onToggleReminders}
-                                    className={`${remindersEnabled ? 'bg-primary' : 'bg-border-color'} relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none`}
-                                >
-                                    <span className={`${remindersEnabled ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform`} />
-                                </button>
-                            </div>
                             <div className="flex items-center justify-between">
                                 <label htmlFor="azkar-toggle" className="text-sm text-text-primary">تنبيهات الأذكار</label>
                                 <button
@@ -207,41 +157,6 @@ const Settings: React.FC<SettingsProps> = ({
                                 )}
                             </div>
                         </div>
-
-                        <div className="p-3 bg-background rounded-lg space-y-3">
-                            <h3 className="font-medium text-text-primary">الموقع وطريقة الحساب</h3>
-                            <div className='space-y-2'>
-                            <div>
-                                <label htmlFor="settings-country" className="block text-xs font-medium text-text-secondary">الدولة</label>
-                                <select id="settings-country" value={selectedCountry} onChange={handleCountryChange}
-                                    className="mt-1 block w-full bg-card border border-border-color rounded-md py-1 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
-                                    <option value="">اختر الدولة</option>
-                                    {countryNames.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="settings-region" className="block text-xs font-medium text-text-secondary">المدينة/المنطقة</label>
-                                <select id="settings-region" value={selectedRegion} onChange={(e) => setSelectedRegion(e.target.value)} disabled={!selectedCountry}
-                                    className="mt-1 block w-full bg-card border border-border-color rounded-md py-1 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
-                                    <option value="">
-                                        {!selectedCountry ? 'اختر الدولة أولاً' : 'اختر المدينة/المنطقة'}
-                                    </option>
-                                    {regionNames.map(r => <option key={r} value={r}>{r}</option>)}
-                                </select>
-                            </div>
-                            <div>
-                                <label htmlFor="settings-method" className="block text-xs font-medium text-text-secondary">طريقة الحساب</label>
-                                <select id="settings-method" value={selectedMethod} onChange={(e) => setSelectedMethod(Number(e.target.value))}
-                                    className="mt-1 block w-full bg-card border border-border-color rounded-md py-1 px-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary">
-                                     {CALCULATION_METHODS.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                                </select>
-                            </div>
-                            <button onClick={handleSave}
-                                className="w-full mt-2 bg-primary/20 text-primary font-bold py-1.5 px-4 rounded-md hover:bg-primary/30 focus:outline-none"
-                            >حفظ الإعدادات</button>
-                            </div>
-                        </div>
-
                     </div>
 
                     <div className="mt-8 text-center">

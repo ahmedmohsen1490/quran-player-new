@@ -92,8 +92,8 @@ const SurahList: React.FC<SurahListProps> = ({
                 e.stopPropagation();
                 onSurahSelect(surah);
               }}
-              className={`p-2 rounded-full transition-colors ${
-                isCurrentAndPlaying ? 'text-primary' : 'text-text-secondary hover:text-primary'
+              className={`p-2 rounded-full transition-all ${
+                isCurrent ? 'bg-primary text-white' : 'text-text-secondary hover:text-primary'
               }`}
               aria-label={isCurrentAndPlaying ? `Pause ${surah.name}` : `Play ${surah.name}`}
             >
@@ -110,10 +110,10 @@ const SurahList: React.FC<SurahListProps> = ({
             <div
               key={surah.id}
               onClick={() => onSurahSelect(surah)}
-              className={`group relative p-4 rounded-lg transition-all duration-300 flex items-center justify-between cursor-pointer border ${isCurrent ? 'bg-card border-primary shadow-lg shadow-primary/10' : 'bg-card/60 border-border-color/50 hover:border-border-color hover:bg-card'}`}
+              className={`group relative p-4 rounded-lg transition-all duration-300 flex items-center justify-between cursor-pointer border ${isCurrent ? 'bg-primary/10 border-primary/50 shadow-lg shadow-primary/10' : 'bg-card/80 border-transparent hover:border-border-color hover:bg-card'}`}
             >
               <div className="flex items-center">
-                <div className={`w-12 h-12 flex items-center justify-center rounded-lg text-lg font-bold ml-4 transition-colors ${isCurrent ? 'bg-primary text-black' : 'bg-background text-text-primary'}`}>
+                <div className={`w-12 h-12 flex items-center justify-center rounded-lg text-lg font-bold ml-4 transition-colors ${isCurrent ? 'bg-primary text-white' : 'bg-background text-text-primary'}`}>
                   {surah.id}
                 </div>
                 <div>

@@ -1,8 +1,8 @@
 import React from 'react';
 import Statistics from './Statistics';
 import ChallengeBanner from './ChallengeBanner';
-import PrayerTimes from './PrayerTimes';
-import { ListeningStats, QuranChallenge, PrayerSettings } from '../types';
+import Muazzin from './Muazzin';
+import { ListeningStats, QuranChallenge, MuazzinSettings } from '../types';
 import { AudioIcon } from './icons/AudioIcon';
 import { ReadIcon } from './icons/ReadIcon';
 import { QuizIcon } from './icons/QuizIcon';
@@ -18,11 +18,11 @@ interface HomePageProps {
     onNavigate: (page: Page) => void;
     stats: ListeningStats;
     challenge: QuranChallenge | null;
-    prayerSettings: PrayerSettings | null;
-    remindersEnabled: boolean;
+    muazzinSettings: MuazzinSettings;
+    onMuazzinSettingsChange: (settings: MuazzinSettings) => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ onNavigate, stats, challenge, prayerSettings, remindersEnabled }) => {
+const HomePage: React.FC<HomePageProps> = ({ onNavigate, stats, challenge, muazzinSettings, onMuazzinSettingsChange }) => {
     
     const navItems = [
         { page: 'audio', label: 'أنصت', icon: <AudioIcon className="w-10 h-10 mb-3 text-primary" /> },
@@ -34,16 +34,16 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, stats, challenge, praye
     return (
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8 animate-fade-in">
             <div className="space-y-6">
+                <Muazzin settings={muazzinSettings} onSettingsChange={onMuazzinSettingsChange} />
                 <ChallengeBanner challenge={challenge} />
                 <Statistics stats={stats} />
-                <PrayerTimes prayerSettings={prayerSettings} remindersEnabled={remindersEnabled} />
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
                     {navItems.map(item => (
                         <button
                             key={item.page}
                             onClick={() => onNavigate(item.page as Page)}
-                            className="bg-card rounded-xl shadow-md p-6 flex flex-col items-center justify-center text-center hover:bg-border-color transform hover:-translate-y-1 transition-all duration-200"
+                            className="bg-card rounded-2xl shadow-md p-6 flex flex-col items-center justify-center text-center hover:bg-border-color transform hover:-translate-y-1 transition-all duration-200"
                         >
                             {item.icon}
                             <h2 className="text-lg font-bold text-text-primary">{item.label}</h2>
@@ -54,7 +54,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, stats, challenge, praye
                 <div className="pt-4">
                      <button
                         onClick={() => onNavigate('history' as Page)}
-                        className="bg-card rounded-xl shadow-md p-6 w-full flex flex-col items-center justify-center text-center hover:bg-border-color transform hover:-translate-y-1 transition-all duration-200"
+                        className="bg-card rounded-2xl shadow-md p-6 w-full flex flex-col items-center justify-center text-center hover:bg-border-color transform hover:-translate-y-1 transition-all duration-200"
                     >
                         <HistoryIcon className="w-12 h-12 mb-3 text-primary" />
                         <h2 className="text-xl font-bold text-text-primary">اعرف تاريخك</h2>
@@ -65,7 +65,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, stats, challenge, praye
                 <div className="pt-4">
                      <button
                         onClick={() => onNavigate('ronaq_mind' as Page)}
-                        className="bg-card rounded-xl shadow-md p-6 w-full flex flex-col items-center justify-center text-center hover:bg-border-color transform hover:-translate-y-1 transition-all duration-200"
+                        className="bg-card rounded-2xl shadow-md p-6 w-full flex flex-col items-center justify-center text-center hover:bg-border-color transform hover:-translate-y-1 transition-all duration-200"
                     >
                         <BrainIcon className="w-12 h-12 mb-3 text-primary" />
                         <h2 className="text-xl font-bold text-text-primary">Ronaq Mind</h2>
@@ -76,7 +76,7 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate, stats, challenge, praye
                 <div className="pt-4">
                      <button
                         onClick={() => onNavigate('kids' as Page)}
-                        className="bg-card rounded-xl shadow-md p-6 w-full flex flex-col items-center justify-center text-center hover:bg-border-color transform hover:-translate-y-1 transition-all duration-200"
+                        className="bg-card rounded-2xl shadow-md p-6 w-full flex flex-col items-center justify-center text-center hover:bg-border-color transform hover:-translate-y-1 transition-all duration-200"
                     >
                         <KidsIcon className="w-12 h-12 mb-3 text-primary" />
                         <h2 className="text-xl font-bold text-text-primary">عالم الطفل</h2>

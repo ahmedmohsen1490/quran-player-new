@@ -1,13 +1,10 @@
-<<<<<<< HEAD
-temporary page
-=======
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>رونق</title>
-    <link rel="manifest" href="/quran-player-new/assets/manifest-DhamWL-o.json" />
+    <link rel="manifest" href="/manifest.json" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -23,6 +20,9 @@ temporary page
               'border-color': 'var(--color-border-color)',
               'background-start': 'var(--color-background-start)',
               'background-end': 'var(--color-background-end)',
+              'mushaf-background': 'var(--color-mushaf-background)',
+              'mushaf-page': 'var(--color-mushaf-page)',
+              'mushaf-border': 'var(--color-mushaf-border)',
             },
           },
         },
@@ -34,14 +34,17 @@ temporary page
     <style>
       :root {
         /* Default colors will be overridden by JS */
-        --color-primary: #2563eb;
-        --color-background: #f8fafd;
+        --color-primary: #0d9488;
+        --color-background: #fbf9f3;
         --color-card: #ffffff;
-        --color-text-primary: #1f2937;
-        --color-text-secondary: #6b7280;
-        --color-border-color: #e5e7eb;
-        --color-background-start: #f8fafd;
-        --color-background-end: #eef4ff;
+        --color-text-primary: #475569;
+        --color-text-secondary: #94a3b8;
+        --color-border-color: #e2e8f0;
+        --color-background-start: #fbf9f3;
+        --color-background-end: #f5f1e8;
+        --color-mushaf-background: '#fdf6e3';
+        --color-mushaf-page: '#fdfaf0';
+        --color-mushaf-border: '#dcd6c0';
 
         /* Scrollbar */
         --scrollbar-track-bg: var(--color-background);
@@ -50,15 +53,16 @@ temporary page
       body {
         font-family: 'Inter', sans-serif;
         background-color: var(--color-background);
-        background-image: linear-gradient(to bottom, var(--color-background-start), var(--color-background-end));
+        background-image: radial-gradient(circle at top, var(--color-background-start), var(--color-background-end));
         background-blend-mode: overlay;
         min-height: 100vh;
         transition: background-color 0.5s ease;
       }
       body.audio-theme {
         background-color: var(--color-background);
+        color: var(--color-primary);
         background-image: linear-gradient(to bottom, var(--color-background-start), color-mix(in srgb, var(--color-background) 80%, black)),
-                          url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><g fill="%23f5b01a" fill-opacity="0.04"><path d="M43.25 50.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-54-27a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM30 50.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-27 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm54 27a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-54-54a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-54 27a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-27 27a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM30-0.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-54 54a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM30 100.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM-3.25 50.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm54-27a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM-3.25 23.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM-3.25 77.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM84.25 50.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM30 23.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-27 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM3 77.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM-3.25-0.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM84.25-0.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM-3.25 100.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM84.25 100.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM84.25 23.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM84.25 77.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0z</g></svg>');
+                          url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><g fill="currentColor" fill-opacity="0.04"><path d="M43.25 50.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-54-27a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM30 50.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-27 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm54 27a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-54-54a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-54 27a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-27 27a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM30-0.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-54 54a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM30 100.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM-3.25 50.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm54-27a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM-3.25 23.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM-3.25 77.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM84.25 50.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM30 23.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm-27 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM3 77.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zm13.5 0a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM-3.25-0.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM84.25-0.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM-3.25 100.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM84.25 100.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM84.25 23.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0zM84.25 77.25a6.75 6.75 0 11-13.5 0 6.75 6.75 0 0113.5 0z</g></svg>');
       }
       .font-amiri-quran {
         font-family: 'Amiri Quran', serif;
@@ -90,8 +94,6 @@ temporary page
         scrollbar-color: var(--scrollbar-thumb-bg) var(--scrollbar-track-bg);
       }
     </style>
-
-<link rel="stylesheet" href="/index.css">
 <script type="importmap">
 {
   "imports": {
@@ -105,10 +107,11 @@ temporary page
   }
 }
 </script>
-  <script type="module" crossorigin src="/quran-player-new/assets/index-C_WWWovm.js"></script>
+<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-background text-text-primary">
     <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -122,4 +125,3 @@ temporary page
     </script>
   </body>
 </html>
->>>>>>> main

@@ -1,3 +1,5 @@
+import { Muazzin } from './types';
+
 export const AZKAR_LIST = [
   "سبحان الله وبحمده، سبحان الله العظيم",
   "لا إله إلا الله وحده لا شريك له، له الملك وله الحمد وهو على كل شيء قدير",
@@ -5,7 +7,7 @@ export const AZKAR_LIST = [
   "أستغفر الله العظيم وأتوب إليه",
   "سبحان الله، والحمد لله، ولا إله إلا الله، والله أكبر",
   "لا حول ولا قوة إلا بالله",
-  "اللهم أعنِّي على ذكرك وشكرك وحسن عبادتك",
+  "اللهم أعنِّ على ذكرك وشكرك وحسن عبادتك",
   "يا حي يا قيوم برحمتك أستغيث",
   "رضيت بالله ربًا، وبالإسلام دينًا، وبمحمدٍ نبيًا",
 ];
@@ -41,4 +43,41 @@ export const CALCULATION_METHODS = [
     { id: 13, name: 'Spiritual Administration of Muslims of Russia' },
     { id: 14, name: 'Moonsighting Committee Worldwide' },
     { id: 15, name: 'Dubai' },
+];
+
+export const COUNTRY_METHOD_MAP: { [key: string]: number } = {
+  "Algeria": 11,
+  "Australia": 1,
+  "Bahrain": 8,
+  "Canada": 2,
+  "Egypt": 3,
+  "India": 5,
+  "Indonesia": 1,
+  "Iraq": 1,
+  "Jordan": 1,
+  "Kuwait": 8,
+  "Lebanon": 1,
+  "Libya": 3,
+  "Malaysia": 1,
+  "Morocco": 11,
+  "Oman": 1,
+  "Pakistan": 5,
+  "Palestine": 1,
+  "Qatar": 9,
+  "Saudi Arabia": 4,
+  "Somalia": 3,
+  "Sudan": 3,
+  "Syria": 1,
+  "Tunisia": 11,
+  "United Arab Emirates": 15,
+  "United Kingdom": 1,
+  "United States": 2,
+  "Yemen": 1,
+};
+
+export const MUAZZIN_LIST: Muazzin[] = [
+  { id: 'mishary', name: 'مشاري راشد العفاسي', audioUrl: 'https://www.islamcan.com/audio/adhan/azan2.mp3' },
+  { id: 'mecca', name: 'أذان الحرم المكي', audioUrl: 'https://www.islamcan.com/audio/adhan/azan15.mp3' },
+  { id: 'medina', name: 'أذان الحرم المدني', audioUrl: 'https://www.islamcan.com/audio/adhan/azan16.mp3' },
+  { id: 'egypt', name: 'الأذان المصري', audioUrl: 'https://www.islamcan.com/audio/adhan/azan13.mp3' },
 ];

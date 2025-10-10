@@ -13,13 +13,13 @@ import AsbabNuzulPage from './components/AsbabNuzulPage';
 import KidsPage from './components/kids/KidsPage';
 import RonaqMindPage from './components/RonaqMindPage';
 import HistoryPage from './components/HistoryPage';
-import { Surah, Reciter, Ayah, ListeningStats, PrayerSettings, Theme, QuranChallenge, SearchAyah, AzkarSettings } from './types';
+import WelcomeModal from './components/WelcomeModal';
+import { Surah, Reciter, Ayah, ListeningStats, MuazzinSettings, Theme, QuranChallenge, SearchAyah, AzkarSettings } from './types';
 import * as db from './db';
 import { DEFAULT_THEME } from './themes';
 import { GoogleGenAI, Type } from '@google/genai';
 import { AZKAR_LIST } from './constants';
 import SearchBar from './components/SearchBar';
-import LocationSetup from './components/LocationSetup';
 import { RecitersIcon } from './components/icons/RecitersIcon';
 import { DownloadsList } from './components/DownloadsList';
 import { UserIcon } from './components/icons/UserIcon';
@@ -47,6 +47,29 @@ const HamburgerIcon: React.FC<{ className?: string }> = ({ className }) => (
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
     </svg>
 );
+
+const usePersistentState = <T,>(key: string, defaultValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
+  const [state, setState] = useState<T>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const storedValue = localStorage.getItem(key);
+        return storedValue ? JSON.parse(storedValue) : defaultValue;
+      } catch (error) {
+        console.error(error);
+        return defaultValue;
+      }
+    }
+    return defaultValue;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(state));
+    }
+  }, [key, state]);
+
+  return [state, setState];
+};
 
 
 const AudioPageLayout: React.FC<{
@@ -128,7 +151,7 @@ const AudioPageLayout: React.FC<{
                 onReciterChange(reciter);
                 setIsSidebarOpen(false);
             }}
-            className={`w-full p-2.5 rounded-lg text-right transition-all duration-200 flex items-center justify-between relative group ${
+            className={`w-full p-2.5 rounded-xl text-right transition-all duration-200 flex items-center justify-between relative group ${
                 isSelected ? 'bg-primary/20' : 'bg-card/50 hover:bg-card'
             }`}
         >
@@ -153,7 +176,7 @@ const AudioPageLayout: React.FC<{
     <div className="flex h-full min-h-[calc(100vh-64px)]">
       {/* Sidebar */}
       <aside className={`absolute lg:relative top-0 right-0 h-full bg-background/80 dark:bg-background/90 backdrop-blur-lg z-30 transition-transform duration-300 ease-in-out lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="w-72 lg:w-80 border-l border-border-color h-full flex flex-col">
+        <div className="w-80 lg:w-96 border-l border-border-color h-full flex flex-col">
           <div className="p-4 border-b border-border-color flex-shrink-0">
             <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
               <RecitersIcon className="w-6 h-6 text-primary"/>
@@ -260,11 +283,32 @@ const App: React.FC = () => {
   const [isTafsirLoading, setIsTafsirLoading] = useState<boolean>(false);
   const [isTafsirError, setIsTafsirError] = useState<boolean>(false);
 
-  // New state for prayer times and settings
-  const [prayerSettings, setPrayerSettings] = useState<PrayerSettings | null>(null);
-  const [isLocationSetupNeeded, setIsLocationSetupNeeded] = useState<boolean>(false);
+  const defaultMuazzinSettings: MuazzinSettings = {
+    country: 'Saudi Arabia',
+    city: 'Riyadh',
+    method: 4,
+    school: 0,
+    muazzinId: 'mecca',
+    remindersEnabled: false,
+    tune: { Imsak: 0, Fajr: 0, Sunrise: 0, Dhuhr: 0, Asr: 0, Maghrib: 0, Isha: 0, Midnight: 0 },
+  };
+
+  const [muazzinSettings, setMuazzinSettings] = usePersistentState<MuazzinSettings>('muazzinSettings', defaultMuazzinSettings);
+
+  // Sanitizes muazzin settings from localStorage to prevent errors with old/incomplete data structures.
+  const sanitizedMuazzinSettings = useMemo(() => {
+    return {
+      ...defaultMuazzinSettings,
+      ...muazzinSettings,
+      tune: {
+        ...defaultMuazzinSettings.tune,
+        ...(muazzinSettings.tune || {}),
+      },
+    };
+  }, [muazzinSettings]);
+
+
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
-  const [prayerRemindersEnabled, setPrayerRemindersEnabled] = useState<boolean>(false);
 
   // State for offline downloads
   const [downloadedTafsir, setDownloadedTafsir] = useState<Set<number>>(new Set());
@@ -304,6 +348,9 @@ const App: React.FC = () => {
   const [seekToTime, setSeekToTime] = useState<number | null>(null);
   const didRestoreState = useRef(false);
 
+  // State for Welcome Modal
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
+
 
   const ai = useRef<GoogleGenAI | null>(null);
   const searchTimeout = useRef<number | null>(null);
@@ -315,17 +362,35 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    document.body.classList.toggle('audio-theme', currentPage === 'audio');
-    // Set scrollbar variables based on audio theme
-    if (currentPage === 'audio') {
-        const isDark = document.documentElement.classList.contains('dark');
-        document.documentElement.style.setProperty('--scrollbar-track-bg', isDark ? '#0d1a2e' : '#fbf9f3');
-        document.documentElement.style.setProperty('--scrollbar-thumb-bg', isDark ? '#2a3e5c' : '#d1c7ac');
-    } else {
-        document.documentElement.style.setProperty('--scrollbar-track-bg', 'var(--color-background)');
-        document.documentElement.style.setProperty('--scrollbar-thumb-bg', 'var(--color-border-color)');
+     // Welcome Modal Logic
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcomePopup');
+    if (!hasSeenWelcome) {
+        const timer = setTimeout(() => {
+            setIsWelcomeModalOpen(true);
+        }, 3000); // 3 seconds
+
+        return () => clearTimeout(timer);
     }
-  }, [currentPage, isDarkMode]);
+  }, []);
+
+  const handleCloseWelcomeModal = () => {
+    setIsWelcomeModalOpen(false);
+    localStorage.setItem('hasSeenWelcomePopup', 'true');
+  };
+
+  useEffect(() => {
+    document.body.classList.toggle('audio-theme', currentPage === 'audio');
+    const root = document.documentElement;
+    const themeColors = isDarkMode ? currentTheme.dark : currentTheme.light;
+    
+    if (currentPage === 'audio' || currentPage === 'kids') {
+        root.style.setProperty('--scrollbar-track-bg', isDarkMode ? '#0d1a2e' : '#fbf9f3');
+        root.style.setProperty('--scrollbar-thumb-bg', isDarkMode ? '#2a3e5c' : '#d1c7ac');
+    } else {
+        root.style.setProperty('--scrollbar-track-bg', themeColors.background);
+        root.style.setProperty('--scrollbar-thumb-bg', themeColors.border);
+    }
+  }, [currentPage, isDarkMode, currentTheme]);
 
   // Restore playback state
   useEffect(() => {
@@ -413,23 +478,6 @@ const App: React.FC = () => {
     }
   }, [challenge]);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const savedSettings = localStorage.getItem('prayerSettings');
-      if (savedSettings) {
-        const parsedSettings = JSON.parse(savedSettings);
-        if (parsedSettings.method === undefined) {
-          setIsLocationSetupNeeded(true);
-        } else {
-          setPrayerSettings(parsedSettings);
-        }
-      } else {
-        setIsLocationSetupNeeded(true);
-      }
-      const savedReminders = localStorage.getItem('prayerRemindersEnabled');
-      setPrayerRemindersEnabled(savedReminders === 'true');
-    }
-  }, []);
   
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -609,7 +657,7 @@ const App: React.FC = () => {
   }, [isDarkMode]);
 
   const appClassName = useMemo(() => {
-    const themeClass = currentPage === 'audio' ? 'audio-page-theme' : '';
+    const themeClass = (currentPage === 'audio' || currentPage === 'kids') ? 'audio-page-theme' : '';
     // A mapping from theme names to custom background classes if needed
     // For now, just handling the audio page theme
     return themeClass;
@@ -629,6 +677,9 @@ const App: React.FC = () => {
     root.style.setProperty('--color-border-color', themeColors.border);
     root.style.setProperty('--color-background-start', themeColors.backgroundStart);
     root.style.setProperty('--color-background-end', themeColors.backgroundEnd);
+    root.style.setProperty('--color-mushaf-background', themeColors.mushafBackground);
+    root.style.setProperty('--color-mushaf-page', themeColors.mushafPage);
+    root.style.setProperty('--color-mushaf-border', themeColors.mushafBorder);
   }, [currentTheme, isDarkMode]);
 
   useEffect(() => {
@@ -1092,27 +1143,6 @@ const App: React.FC = () => {
       setDownloadedItems(prev => prev.filter(item => !(item.surah.id === surah.id && item.reciter.identifier === reciter.identifier)));
   };
 
-  const handlePrayerSettingsSave = (newSettings: PrayerSettings) => {
-    setPrayerSettings(newSettings);
-    localStorage.setItem('prayerSettings', JSON.stringify(newSettings));
-    setIsLocationSetupNeeded(false);
-    setIsSettingsModalOpen(false);
-  };
-
-  const handleTogglePrayerReminders = () => {
-    const newIsEnabled = !prayerRemindersEnabled;
-    if (newIsEnabled && typeof window.Notification !== 'undefined' && Notification.permission !== 'granted') {
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          setPrayerRemindersEnabled(true);
-          localStorage.setItem('prayerRemindersEnabled', 'true');
-        }
-      });
-    } else {
-      setPrayerRemindersEnabled(newIsEnabled);
-      localStorage.setItem('prayerRemindersEnabled', String(newIsEnabled));
-    }
-  };
   
   const performSmartSearch = useCallback(async (query: string) => {
     if (!ai.current) {
@@ -1219,8 +1249,8 @@ const App: React.FC = () => {
                   onNavigate={setCurrentPage} 
                   stats={stats}
                   challenge={challenge}
-                  prayerSettings={prayerSettings}
-                  remindersEnabled={prayerRemindersEnabled}
+                  muazzinSettings={sanitizedMuazzinSettings}
+                  onMuazzinSettingsChange={setMuazzinSettings}
                 />;
       case 'audio':
         return (
@@ -1299,21 +1329,17 @@ const App: React.FC = () => {
       case 'history':
         return <HistoryPage />;
       default:
-        return <HomePage onNavigate={setCurrentPage} stats={stats} challenge={challenge} prayerSettings={prayerSettings} remindersEnabled={prayerRemindersEnabled}/>;
+        return <HomePage onNavigate={setCurrentPage} stats={stats} challenge={challenge} muazzinSettings={sanitizedMuazzinSettings} onMuazzinSettingsChange={setMuazzinSettings}/>;
     }
   };
 
 
   return (
     <div className={`min-h-screen bg-background text-text-primary transition-colors duration-300 ${appClassName}`}>
-      {isLocationSetupNeeded && <LocationSetup onSave={handlePrayerSettingsSave} />}
+      <WelcomeModal isOpen={isWelcomeModalOpen} onClose={handleCloseWelcomeModal} />
       <Settings 
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
-        remindersEnabled={prayerRemindersEnabled}
-        onToggleReminders={handleTogglePrayerReminders}
-        currentSettings={prayerSettings}
-        onSaveSettings={handlePrayerSettingsSave}
         azkarSettings={azkarSettings}
         onAzkarSettingsChange={setAzkarSettings}
         surahs={surahs}
@@ -1383,7 +1409,7 @@ const App: React.FC = () => {
         )}
         {!error && renderPage()}
       </main>
-      {selectedReciter && (
+      {selectedReciter && currentPage !== 'kids' && (
         <Player
           surah={currentSurah}
           reciter={selectedReciter}
