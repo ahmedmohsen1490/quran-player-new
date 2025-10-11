@@ -88,6 +88,11 @@
         border-radius: 6px;
         border: 3px solid var(--scrollbar-track-bg);
       }
+      /* Performance improvement for long lists */
+      .surah-item {
+        content-visibility: auto;
+        contain-intrinsic-size: 92px; /* 5rem item height (80px) + 0.75rem margin (12px) */
+      }
       /* For Firefox */
       .custom-scrollbar {
         scrollbar-width: thin;
@@ -105,11 +110,14 @@
     "@capacitor/cli": "https://aistudiocdn.com/@capacitor/cli@^7.4.3",
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.21.0",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.0.4",
-    "vite": "https://aistudiocdn.com/vite@^7.1.7"
+    "vite": "https://aistudiocdn.com/vite@^7.1.7",
+    "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+    "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.4.0/"
   }
 }
 </script>
-  <script type="module" crossorigin src="/quran-player-new/assets/index-B70YuFPl.js"></script>
+  <script type="module" crossorigin src="/quran-player-new/assets/index-CtYO4Hme.js"></script>
 </head>
   <body class="bg-background text-text-primary">
     <div id="root"></div>
